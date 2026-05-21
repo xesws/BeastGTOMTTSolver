@@ -1,0 +1,29 @@
+{
+  "game_format": "mtt_icm",
+  "tournament_stage": "near_bubble",
+  "street": "preflop",
+  "hero_hand": "AQo",
+  "hero_position": "UTG+1",
+  "action_to_hero": "unopened",
+  "hero_stack_bb": 14,
+  "effective_stack_bb": 14,
+  "pot_bb": 2.4,
+  "open_size_bb": 2.0,
+  "ante_bb": 0.1,
+  "players_left": 101,
+  "paid_places": 99,
+  "payouts": [100, 70, 50, 35, 25, 18, 12, 8, 5],
+  "hero_index": 3,
+  "table_stacks": [
+    {"seat": 0, "stack_bb": 26},
+    {"seat": 1, "stack_bb": 18},
+    {"seat": 2, "stack_bb": 9},
+    {"seat": 3, "stack_bb": 14},
+    {"seat": 4, "stack_bb": 31},
+    {"seat": 5, "stack_bb": 22},
+    {"seat": 6, "stack_bb": 7},
+    {"seat": 7, "stack_bb": 44},
+    {"seat": 8, "stack_bb": 11}
+  ],
+  "max_latency_ms": 100
+}
