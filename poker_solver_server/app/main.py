@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException
 
 from .approx_ev import predict_action_evs
 from .cfr.lookup import lookup as cfr_lookup
@@ -13,6 +16,9 @@ from .models import (
 )
 from .range_table import lookup as range_table_lookup
 from .solver import solve_preflop
+from .llm.sessions import SessionStore
+from .llm.models import ChatRequest, ChatResponse, SessionRecord, SessionCreateResponse
+from .llm.orchestrator import process_chat_message
 
 app = FastAPI(
     title="Poker Solver Server",
@@ -54,3 +60,42 @@ def predict_preflop_endpoint(state: GameState) -> ApproxEVResponse:
 def cfr_preflop_endpoint(state: GameState) -> CFRResponse:
     """v4 push/fold CFR blueprint lookup. HU only (SB/BB), bucket-quantized."""
     return CFRResponse(**cfr_lookup(state))
+
+
+session_store = SessionStore()
+
+
+@app.post("/v1/chat/sessions", response_model=SessionCreateResponse)
+def create_chat_session() -> SessionCreateResponse:
+    record = session_store.create_session()
+    return SessionCreateResponse(session_id=record.session_id, created_at=record.created_at)
+
+
+@app.post("/v1/chat/sessions/{session_id}/messages", response_model=ChatResponse)
+def send_chat_message(session_id: str, request: ChatRequest) -> ChatResponse:
+    try:
+        session = session_store.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    return process_chat_message(session, session_store, request.message)
+
+
+@app.get("/v1/chat/sessions/{session_id}", response_model=SessionRecord)
+def get_chat_session(session_id: str) -> SessionRecord:
+    try:
+        return session_store.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+
+
+@app.delete("/v1/chat/sessions/{session_id}")
+def delete_chat_session(session_id: str) -> dict:
+    try:
+        # Validate existence/expiration
+        session_store.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    session_store.delete_session(session_id)
+    return {"status": "deleted"}

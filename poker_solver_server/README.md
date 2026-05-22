@@ -236,3 +236,44 @@ curl -s -X POST http://localhost:8000/v1/predict/preflop \
 - 线性系数对 v2 输出离线手工拟合
 - `confidence` 在所有 categorical 输入（hand class / position / stage）都被识别且 stack 不在极端区间时为 1.0
 - 当未来要把这一层换成真 NN，只需替换 `_EV_*_WEIGHTS` 与 `_linear`，公开 API 保持稳定
+
+
+---
+
+## v5 LLM Orchestrator (Natural Language Frontend)
+
+自然语言前端，接收用户输入的自然语言请求（如：“我 UTG+1 AQo 14BB near bubble 怎么打”），在后台自动进行 GameState 结构化提取、调用 Solver (v0+v2) 进行策略计算，并由 LLM 生成中文策略分析解释。支持多轮对话状态继承与合并。
+
+### 端点设计
+
+- `POST /v1/chat/sessions` — 创建新会话
+- `POST /v1/chat/sessions/{session_id}/messages` — 发送聊天消息
+- `GET /v1/chat/sessions/{session_id}` — 获取会话历史与当前提取的状态
+- `DELETE /v1/chat/sessions/{session_id}` — 结束/删除当前会话
+
+### 调用示例
+
+```bash
+# 1) 创建会话
+sid=$(curl -s -X POST http://localhost:8000/v1/chat/sessions | python -c "import sys, json; print(json.load(sys.stdin)['session_id'])")
+
+# 2) 提问完整问题
+curl -s -X POST http://localhost:8000/v1/chat/sessions/$sid/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "我 UTG+1 AQo 14BB near bubble 怎么打"}' | python -m json.tool
+
+# 3) 多轮追问，修改筹码量（自动继承先前的手牌、位置和阶段）
+curl -s -X POST http://localhost:8000/v1/chat/sessions/$sid/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "那如果是 10BB 呢?"}' | python -m json.tool
+```
+
+### 返回字段说明
+
+- `message_id`: 消息唯一 ID。
+- `answer`: LLM 生成的中文策略解释或信息澄清提问。
+- `parsed_state`: 当前提取的完整 `GameState`。如信息缺失，返回 `null`。
+- `solver_data`: Solver 返回的 `SolveResponse`。如信息缺失，返回 `null`。
+- `missing_fields`: 缺失的核心字段列表（例如 `["hero_position"]`）。
+- `usage`: 此次调用消耗的 LLM token 统计及使用的模型名称。
+
