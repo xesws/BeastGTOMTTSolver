@@ -36,18 +36,35 @@ poker_solver_server/
     main.py       # FastAPI app
     models.py     # Pydantic request/response schema
     solver.py     # heuristic preflop solver + ICM diagnostics
+    llm/          # v5 LLM Orchestrator
+      client.py
+      prompts.py
+      parser.py
+      explainer.py
+      sessions.py
+      orchestrator.py
+      models.py
   examples/
     request_icm_near_bubble_aqo.json
   tests/
     test_solver.py
+    test_chat.py  # v5 chat tests
   requirements.txt
   README.md
 ```
 
-API surface for v0:
+API surface:
 
 - `GET /health`
-- `POST /v1/solve/preflop`
+- `POST /v1/solve/preflop` (v0/v2 solver)
+- `POST /v1/lookup/preflop` (v1 range table)
+- `POST /v1/predict/preflop` (v3 approx EV)
+- `POST /v1/cfr/preflop` (v4 push/fold CFR)
+- `POST /v1/chat/sessions` (v5 chat sessions)
+- `POST /v1/chat/sessions/{session_id}/messages` (v5 chat messages)
+- `GET /v1/chat/sessions/{session_id}` (v5 inspect session)
+- `DELETE /v1/chat/sessions/{session_id}` (v5 delete session)
+
 
 ## Expected Dev Commands (once `poker_solver_server/` exists)
 
@@ -102,6 +119,20 @@ When implementing features in this repo, **default to dispatching agent teams in
 - After agents return, **verify their output** before claiming success — an agent's summary describes intent, not necessarily what landed on disk.
 
 This is the preferred working mode for this project; do not collapse into a single-threaded implementation just because the task feels small.
+
+## Commit & Push Conventions
+
+When the user explicitly asks you to commit and/or push in this repo:
+
+- **No Co-Author trailer.** Do NOT append `Co-Authored-By: Claude ...` or any other credit line to commit messages. Plain author attribution only.
+- **Very detailed commit messages.** Each commit message must describe:
+  - what changed (concretely — file by file or layer by layer for big commits)
+  - why it changed (the goal / motivation, often tying back to the design doc or a previous decision)
+  - notable structural choices, simplifications, or non-obvious tradeoffs
+  - any explicit non-scope or known limitations
+  - new / changed commands or contracts the reader needs to know about
+- Prefer **multiple logically-scoped commits** over a single mega-commit when the work has natural separation points (e.g. "bootstrap" vs "implementation"). When a single commit is unavoidable (initial population, tightly-coupled refactor), structure the message with section headers (`## v0`, `## v1`, …) so it stays scannable.
+- Continue to honor the global rules from `~/.claude/CLAUDE.md`: only commit / push when explicitly asked, never force-push to `main` / `master`, never skip hooks (`--no-verify`) unless asked, never stage `.env` or any other secret-bearing file.
 
 ## When the Solver Is Uncertain
 
